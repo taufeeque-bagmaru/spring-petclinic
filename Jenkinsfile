@@ -10,10 +10,10 @@ pipeline:
     provider: aws
     instance_type: t2.micro
 
-triggers:
-  - name: post_commit
-    type: post_commit
-    branch: main
+#triggers:
+ # - name: post_commit
+  #  type: post_commit
+   # branch: main
 
 stages:
   - stage: build
