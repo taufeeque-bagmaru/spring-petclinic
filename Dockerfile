@@ -1,7 +1,17 @@
-FROM anapsix/alpine-java
+# Specify the base image
+FROM maven:3.8.4-openjdk-17
 
-LABEL maintainer="shanem@liatrio.com"
+# Set the working directory
+WORKDIR /app
 
-COPY /target/spring-petclinic-1.5.1.jar /home/spring-petclinic-1.5.1.jar
+# Copy the application files
+COPY . .
 
-CMD ["java","-jar","/home/spring-petclinic-1.5.1.jar"]
+# Build the application
+RUN mvn clean compile
+
+# Expose the necessary ports
+EXPOSE 9000
+
+# Define the command to run the application
+CMD ["java", "-jar", "myapp.jar"]
