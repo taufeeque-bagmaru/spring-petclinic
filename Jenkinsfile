@@ -1,16 +1,62 @@
-#!groovy
-pipeline {
-	agent none
-  stages {
-  	stage('Maven Install') {
-    	agent {
-      	docker {
-        	image 'maven:3.9.2'
-        }
-      }
-      steps {
-      	sh 'mvn clean install -e -X'
-      }
-    }
-  }
-}
+stages:
+  - build
+  - test
+  - sonarqube
+  - deploy
+
+pipeline:
+  agent:
+    type: cloud
+    provider: aws
+    instance_type: t2.micro
+
+triggers:
+  - name: post_commit
+    type: post_commit
+    branch: main
+
+stages:
+  - stage: build
+    steps:
+      - name: Set up build management tool
+        run: |
+          sudo apt-get install maven
+      - name: Build Docker image
+        run: |
+          docker build -t myapp .
+
+  - stage: test
+    steps:
+      - name: Run JUnit tests
+        run: |
+          mvn test
+
+  - stage: deploy
+    steps:
+      - name: Deploy Docker image or run Docker container
+        run: |
+          kubectl create deployment deployment-sre --image=docker-sre
+          docker run -d --name container-sre docker-sre
+
+  - stage: prod-approval
+    steps:
+      - name: Manual approval for production deployment
+        id: "prod-approval"
+        inputs:
+          message: "Approve deployment to production?"
+          submitter: "admin"
+
+post:
+  always:
+    - name: Send build status notification
+      mail:
+        to: "taufeeque.bagmaru@gmail.com"
+        subject: "Pipeline Status - ${currentBuild.currentResult}"
+        body: |
+          Pipeline status: ${currentBuild.currentResult}
+
+    - name: Clean up resources or perform cleanup actions
+      run: |
+        rm -rf /path/to/temporary/files
+
+
