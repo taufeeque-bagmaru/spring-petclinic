@@ -14,7 +14,6 @@ triggers:
      githubPush()
           branch('main')
 
-stages:
   - stage: build
     steps:
       - name: Set up build management tool
