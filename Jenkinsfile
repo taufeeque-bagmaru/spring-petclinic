@@ -1,60 +1,56 @@
-stages:
-  - build
-  - test
-  - sonarqube
-  - deploy
+pipeline {
+    agent {
+        node {
+            label 'aws'
+        }
+    }
 
-pipeline:
-  agent:
-    type: cloud
-    provider: aws
-    instance_type: t2.micro
+    triggers {
+        githubPush()
+    }
 
-triggers:
-     githubPush()
-          branch('main')
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    sh 'sudo apt-get install maven'
+                    sh 'docker build -t myapp .'
+                }
+            }
+        }
 
-  - stage: build
-    steps:
-      - name: Set up build management tool
-        run: |
-          sudo apt-get install maven
-      - name: Build Docker image
-        run: |
-          docker build -t myapp .
+        stage('Test') {
+            steps {
+                sh 'mvn test'
+            }
+        }
 
-  - stage: test
-    steps:
-      - name: Run JUnit tests
-        run: |
-          mvn test
+        stage('Deploy') {
+            steps {
+                script {
+                    sh 'kubectl create deployment deployment-sre --image=docker-sre'
+                    sh 'docker run -d --name container-sre docker-sre'
+                }
+            }
+        }
 
-  - stage: deploy
-    steps:
-      - name: Deploy Docker image or run Docker container
-        run: |
-          kubectl create deployment deployment-sre --image=docker-sre
-          docker run -d --name container-sre docker-sre
+        stage('prod-approval') {
+            steps {
+                input(id: 'prod-approval', message: 'Approve deployment to production?', submitter: 'admin')
+            }
+        }
+    }
 
-  - stage: prod-approval
-    steps:
-      - name: Manual approval for production deployment
-        id: "prod-approval"
-        inputs:
-          message: "Approve deployment to production?"
-          submitter: "admin"
+    post {
+        always {
+            emailext subject: "Pipeline Status - ${currentBuild.currentResult}",
+                body: "Pipeline status: ${currentBuild.currentResult}",
+                to: "taufeeque.bagmaru@gmail.com"
+            
+            sh 'rm -rf /path/to/temporary/files'
+        }
+    }
+}
 
-post:
-  always:
-    - name: Send build status notification
-      mail:
-        to: "taufeeque.bagmaru@gmail.com"
-        subject: "Pipeline Status - ${currentBuild.currentResult}"
-        body: |
-          Pipeline status: ${currentBuild.currentResult}
-
-    - name: Clean up resources or perform cleanup actions
-      run: |
-        rm -rf /path/to/temporary/files
 
 
